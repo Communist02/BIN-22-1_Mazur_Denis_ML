@@ -1,6 +1,5 @@
-from email import header
 import numpy as np
-
+from processing import Processing
 
 class NeuralNetwork:
     def __init__(self, input_size: int, hidden_size: int, output_size: int):
@@ -46,31 +45,66 @@ class NeuralNetwork:
 
 
 if __name__ == "__main__":
-    data = np.genfromtxt('diamond.csv', delimiter=',', skip_header=1)
-    X = np.array([
-        [0, 0, 1],
-        [0, 0, 0],
-        [1, 0, 1],
-        [1, 1, 0],
-        [0, 1, 1],
-        [0, 0, 0],
-        [1, 1, 1],
-        [1, 1, 0]
-    ])
-    y = np.array([[1], [0], [1], [0], [1], [0], [1], [0]])
+    pc = Processing()
+    text = 'Звезды отражались в её глазах. Раньше, еще месяц назад их не было видно в черте города. Свет фонарей и смог заглушали их слабое мерцание. Все изменилось. И одним из немногих плюсов сложившейся ситуации было мерцание звезд в её глазах, и воздух, кажется стал чище. У всех у нас когда то была работа, и был дом. У некоторых были дети. У Лены была дочка. Она работала барменшой, а по вечерам подрабатывала в "клубе знакомств". Попросту говоря - была проституткой. Теперь ей уже не приходится ездить по незнакомым клиентам, каждый раз перед дверью квартиры креститься, и молиться, что бы все прошло как надо. Это тоже плюс. Но теперь у неё нет дочки. Она потерялась в первые дни, как только все это начиналось. Лена была "на вызове", когда исчезло электричество. Никто еще не знал, что это серьезно. Мобильная связь не работала, город погрузился во тьму за окнами однакомнатной квартиры, в которой возбужденный мужчина кончал в презерватив, а Лена считала секунды до очередного вызова. Она не могла как обычно принять душ, и вызвать такси, и после осознания этого, просто начала одеваться. Белье по привычке было сложено одной кучкой рядом с кроватью. Мужчина, имя которого она не захотела запоминать сказал ей спасибо и открыл дверь, что то проворчав напоследок на "долбанных электриков"... Лене было очень приятно выйти на свежий воздух, после пропахшей перегаром комнатушки. Она шла по темным улицам города, шла на "базу" пешком, и эта непроглядная тьма вокруг для неё сейчас была отражением внутреннего состояния, и поэтому она наслаждалась этой прогулкой. Она еще не знала, что электричество и водоснабжение уже не восстановят. Она не могла подумать, что через три часа её пятилетняя дочка, испугавшись темноты и одиночества, выйдет из квартиры, и пропадет навсегда. Она еще не знала, что её поиски будут бесполезны и опасны... Она просто шла по улице.'
+    tokens = pc.tokenize(text)  # Токенизация
+    tokens = pc.lematize(tokens)  # Лемматизация
+    tokens = pc.delete_stop_words(tokens)  # Удаление стоп слов
+    vectors = np.array(pc.vectorize(tokens))
+    vectors_dict = pc.vectorize_dict(tokens)
+    inv_map = {v: k for k, v in vectors_dict.items()}
+    n = np.linalg.norm(vectors)
+    norm1 = vectors / np.linalg.norm(vectors)
+    orders = [
+    'Звезды отражались', 
+    'Воздух стал', 
+    'Она раньше шла', 
+    'Дочка испугалась', 
+    'Город погрузился', 
+    'Она не могла месяц', 
+    'Электричество исчезло', 
+    'Поиск видно'
+]
 
-    nn = NeuralNetwork(input_size=3, hidden_size=4, output_size=1)
+    result = [
+        'глазах', 
+        'чище', 
+        'темным', 
+        'одиночества', 
+        'тьму', 
+        'связь', 
+        'связь', 
+        'опасен'
+    ]
+
+    X = []
+    y = []
+
+    for text in orders:
+        tokens = pc.tokenize(text)  # Токенизация
+        tokens = pc.lematize(tokens)  # Лемматизация
+        tokens = pc.delete_stop_words(tokens)  # Удаление стоп слов
+        vectorsX = []
+        for word in tokens:
+            vectorsX.append(vectors_dict[word] / n)
+        X.append(vectorsX)
+
+    for text in result:
+        tokens = pc.tokenize(text)  # Токенизация
+        tokens = pc.lematize(tokens)  # Лемматизация
+        tokens = pc.delete_stop_words(tokens)  # Удаление стоп слов
+        vectorsY = []
+        for word in tokens:
+            vectorsY.append(vectors_dict[word] / n)
+        y.append(vectorsY)
+
+    X = np.array(X)
+    y = np.array(y)
+    nn = NeuralNetwork(input_size=2, hidden_size=10, output_size=1)
     nn.train(X, y, epochs=10000)
     print("Predictions:")
-    print(nn.predict(X))
+    predict = nn.predict(X)
 
-    norm1 = data[:, 0] / np.linalg.norm(data[:, 0])
-    norm2 = data[:, 1] / np.linalg.norm(data[:, 1])
-    norm3 = data[:, 2] / np.linalg.norm(data[:, 2])
-
-    X = np.stack([norm1, norm2], axis=1)
-    y = norm3.reshape(-1, 1)
-    nn = NeuralNetwork(input_size=2, hidden_size=4, output_size=1)
-    nn.train(X, y, epochs=10000)
-    print("Predictions:")
-    print(nn.predict(X))
+    for pred in predict:
+        r = round(pred[0] * n)
+        print(inv_map[r])
